@@ -1,0 +1,6 @@
+@Labys.API_HostAddress = http://localhost:5105
+
+GET {{Labys.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
