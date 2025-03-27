@@ -130,3 +130,10 @@ StyleCopReport.xml
 *.jfm
 *.publishsettings
 orleans.codegen.cs
+
+
+
+# Add these lines to your .gitignore file
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
