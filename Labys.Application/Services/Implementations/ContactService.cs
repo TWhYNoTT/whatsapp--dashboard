@@ -343,7 +343,9 @@ namespace Labys.Application.Services.Implementations
         /// <summary>
         /// Import contacts from an Excel file and save them with tags.
         /// </summary>
-        public async Task<ApiResponse<int>> ImportContactsAsync(List<Contact> contacts)
+      
+
+        public async Task<ApiResponse<int>> ImportContactsAsync(IList<Contact> contacts)
         {
             try
             {
