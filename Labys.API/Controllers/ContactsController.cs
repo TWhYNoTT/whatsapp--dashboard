@@ -2,6 +2,7 @@
 using Labys.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OfficeOpenXml;
 using System.Threading.Tasks;
 
 namespace Labys.API.Controllers
@@ -83,6 +84,58 @@ namespace Labys.API.Controllers
 
             return BadRequest(new { Error = response.Message });
         }
+
+
+
+        [HttpPost("import-excel")]
+        public async Task<IActionResult> ImportContactsFromExcel(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Please upload a valid Excel file.");
+
+            var contacts = new List<Contact>();
+
+            try
+            {
+                using (var stream = new MemoryStream())
+                {
+                    await file.CopyToAsync(stream);
+                    using (var package = new ExcelPackage(stream))
+                    {
+                        var worksheet = package.Workbook.Worksheets[0]; // First sheet
+                        int rowCount = worksheet.Dimension.Rows;
+
+                        for (int row = 2; row <= rowCount; row++) // Skip headers
+                        {
+                            string phoneNumber = worksheet.Cells[row, 1].Text.Trim(); // Column A
+                            string tag = worksheet.Cells[row, 2].Text.Trim(); // Column B
+
+                            if (!string.IsNullOrEmpty(phoneNumber))
+                            {
+                                contacts.Add(new Contact
+                                {
+                                    PhoneNumber = phoneNumber,
+                                    Tags = tag
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Save contacts with tags
+                var response = await _contactService.ImportContactsAsync(contacts);
+
+                if (response.Success)
+                    return Ok(new { Message = $"Imported {contacts.Count} contacts successfully.", ImportedCount = contacts.Count });
+
+                return BadRequest(new { Error = response.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = "Error processing the file", Details = ex.Message });
+            }
+        }
+
 
         /// <summary>
         /// Update an existing contact

@@ -338,5 +338,61 @@ namespace Labys.Application.Services.Implementations
                 return ApiResponse<int>.ErrorResponse(ex.Message);
             }
         }
+
+
+        /// <summary>
+        /// Import contacts from an Excel file and save them with tags.
+        /// </summary>
+        public async Task<ApiResponse<int>> ImportContactsAsync(List<Contact> contacts)
+        {
+            try
+            {
+                int importedCount = 0;
+
+                foreach (var contact in contacts)
+                {
+                    // Check if the contact already exists
+                    var existingContact = await _contactRepository.GetByPhoneNumberAsync(contact.PhoneNumber);
+                    if (existingContact == null)
+                    {
+                        // New contact: Save it with the tag from Excel
+                        contact.LastContactDate = DateTime.UtcNow;
+                        if (contact.HasOptedIn && !contact.OptInDate.HasValue)
+                        {
+                            contact.OptInDate = DateTime.UtcNow;
+                        }
+
+                        await _contactRepository.AddAsync(contact);
+                        importedCount++;
+                    }
+                    else
+                    {
+                        // Update existing contact with new tags (append if necessary)
+                        if (!string.IsNullOrWhiteSpace(contact.Tags))
+                        {
+                            var existingTags = existingContact.Tags?.Split(',').Select(t => t.Trim()).ToList() ?? new List<string>();
+                            var newTags = contact.Tags.Split(',').Select(t => t.Trim()).ToList();
+
+                            foreach (var tag in newTags)
+                            {
+                                if (!existingTags.Contains(tag))
+                                {
+                                    existingTags.Add(tag);
+                                }
+                            }
+
+                            existingContact.Tags = string.Join(", ", existingTags);
+                            await _contactRepository.UpdateAsync(existingContact);
+                        }
+                    }
+                }
+
+                return ApiResponse<int>.SuccessResponse(importedCount, $"Successfully imported {importedCount} new contacts.");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<int>.ErrorResponse(ex.Message);
+            }
+        }
     }
 }

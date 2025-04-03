@@ -17,5 +17,7 @@ namespace Labys.Application.Services.Interfaces
         Task<ApiResponse<(bool IsNew, Contact Contact)>> EnsureContactExistsAsync(string phoneNumber, string name = null);
         Task<ApiResponse<IEnumerable<string>>> GetAllTagsAsync();
         Task<ApiResponse<int>> ImportFromInvoicesAsync();
+        Task<ApiResponse<int>> ImportContactsAsync(IList<Contact> contacts);
+
     }
 }
