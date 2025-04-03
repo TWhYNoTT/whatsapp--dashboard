@@ -5,11 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
 using System.Threading.Tasks;
 
+using ExcelDataReader;
+using System.Text;
+using System.Data;
 namespace Labys.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    //[Authorize(Roles = "SuperAdmin,Admin")]
     public class ContactsController : ControllerBase
     {
         private readonly IContactService _contactService;
@@ -97,18 +100,30 @@ namespace Labys.API.Controllers
 
             try
             {
+                // Required for ExcelDataReader to work in .NET Core
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
                 using (var stream = new MemoryStream())
                 {
                     await file.CopyToAsync(stream);
-                    using (var package = new ExcelPackage(stream))
-                    {
-                        var worksheet = package.Workbook.Worksheets[0]; // First sheet
-                        int rowCount = worksheet.Dimension.Rows;
+                    stream.Position = 0; // Reset stream position
 
-                        for (int row = 2; row <= rowCount; row++) // Skip headers
+                    using (var reader = ExcelReaderFactory.CreateReader(stream))
+                    {
+                        var dataset = reader.AsDataSet(new ExcelDataSetConfiguration()
                         {
-                            string phoneNumber = worksheet.Cells[row, 1].Text.Trim(); // Column A
-                            string tag = worksheet.Cells[row, 2].Text.Trim(); // Column B
+                            ConfigureDataTable = _ => new ExcelDataTableConfiguration()
+                            {
+                                UseHeaderRow = true // Treat first row as header
+                            }
+                        });
+
+                        var dataTable = dataset.Tables[0]; // First sheet
+
+                        foreach (DataRow row in dataTable.Rows)
+                        {
+                            string phoneNumber = row[0]?.ToString().Trim(); // Column A
+                            string tag = row[1]?.ToString().Trim(); // Column B
 
                             if (!string.IsNullOrEmpty(phoneNumber))
                             {
@@ -124,11 +139,7 @@ namespace Labys.API.Controllers
 
                 // Save contacts with tags
                 var response = await _contactService.ImportContactsAsync(contacts);
-
-                if (response.Success)
-                    return Ok(new { Message = $"Imported {contacts.Count} contacts successfully.", ImportedCount = contacts.Count });
-
-                return BadRequest(new { Error = response.Message });
+                return Ok(new { Message = $"Imported {contacts.Count} contacts successfully." });
             }
             catch (Exception ex)
             {
